@@ -1,6 +1,7 @@
-flask-apscheduler=1.11.0
+flask-apscheduler==1.11.0
 flask_restplus==0.12.1
 flask_marshmallow==0.10.0
 pycrypto==2.6.1
 celery==4.3.0
 APScheduler==3.6.0
+pyodbc==4.0.27
