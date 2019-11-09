@@ -15,7 +15,7 @@ import sys, os, shutil
 from os import listdir
 from os.path import isdir, isfile, join
 
-from store import store_updatelist_csv
+from storage import store_updatelist_csv
 
 def verify_sign(public_key_loc, signature, data):
     '''
