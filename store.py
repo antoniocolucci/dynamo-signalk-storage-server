@@ -50,7 +50,7 @@ def store_updatelist_odbc(update_list, options):
                     #print sql_string
                     cur.execute(sql_string)
                 except Exception as e:
-                    print e
+                    print(e)
 
                     cur = con.cursor()
 
@@ -88,7 +88,7 @@ def store_updatelist_odbc(update_list, options):
                     cur.execute(sql_string, params)
                     con.commit()
                 except Exception as e:
-                    print e
+                    print(e)
 
 
 def main():
@@ -193,7 +193,8 @@ def main():
     sql_string="SELECT * FROM navigation_position ORDER BY timestamp"
     rows=cur.execute(sql_string).fetchall()
     for row in rows:
-        print row
+        print(row)
+
 
 if __name__ == "__main__":
     main()
