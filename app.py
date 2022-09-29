@@ -1,22 +1,18 @@
-from flask import Flask, Blueprint, url_for, jsonify, current_app, abort, send_from_directory
-from flask_restplus import Api, Resource, reqparse
-
-import werkzeug
+import logging
+import os
+import shutil
+import sys
 import tempfile
-
 import time
-
-
+import werkzeug
 from celery import Celery
-
-import sys, os, shutil
+from flask import Flask, Blueprint, url_for, jsonify, current_app, abort, send_file
+from flask_restplus import Api, Resource, reqparse
 from os import listdir
 from os.path import isdir, isfile, join
 
-from tasks import process_file_task, process_file_queue
 from queues import Queues
-
-import logging
+from tasks import process_file_task, process_file_queue
 
 log = logging.getLogger('app')
 log.setLevel(logging.DEBUG)  # DEBUG
@@ -25,7 +21,6 @@ fmt = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
 h = logging.StreamHandler()
 h.setFormatter(fmt)
 log.addHandler(h)
-
 
 file_upload = reqparse.RequestParser()
 file_upload.add_argument('file',
@@ -39,34 +34,7 @@ file_upload.add_argument('sessionId',
 
 app = Flask(__name__)
 
-
-class BaseConfig(object):
-
-    MEDIA_ROOT = "data/media/"
-    SCRATCH_ROOT = "data/scratch/"
-    TRASH_ROOT = "data/trash/"
-
-    CONNECTION_STRING = "sqlite:///data/dynamo.db"
-
-    PRIVATE_KEY_FILENAME = "keys/dynamo-store-private.pem"
-    PUBLIC_KEY_ROOT = "keys/public"
-
-    CELERY_BROKER_URL = "pyamqp://guest@localhost//"
-    CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
-
-
-config = {
-    "default": BaseConfig
-}
-
-
-def configure_app(app):
-    config_name = os.getenv('FLASK_CONFIGURATION', 'default')
-    app.config.from_object(config[config_name]) # object-based default configuration
-    app.config.from_pyfile('config.cfg', silent=True) # instance-folders configuration
-
-
-configure_app(app)
+app.config.from_pyfile('config.cfg', silent=True)  # instance-folders configuration
 
 celery = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
@@ -76,8 +44,9 @@ def myworker(queue_item):
     print("myworker:" + queue_item)
 
 
-queues = Queues(process_file_queue, 8)
+queues = Queues(process_file_queue, 1)
 queues.start()
+
 
 def get_conf():
     media_root = app.config.get("MEDIA_ROOT")
@@ -102,63 +71,61 @@ def get_conf():
 
 
 def process_files():
-    log.info("Start "+time.strftime("%A, %d. %B %Y %I:%M:%S %p")+"...")
+    log.info("Start " + time.strftime("%A, %d. %B %Y %I:%M:%S %p") + "...")
 
     conf = get_conf()
-    media_root=conf["media_root"]
+    media_root = conf["media_root"]
 
     vessels = [f for f in listdir(media_root) if isdir(join(media_root, f))]
     for vessel in vessels:
-        vessel_root=media_root+"/"+vessel
+        vessel_root = media_root + "/" + vessel
         files = [f for f in listdir(vessel_root) if isfile(join(vessel_root, f))]
         for file_item in files:
-            log.info("Processing:"+media_root+","+vessel+","+file_item)
-            #process_file_task.delay(vessel, file_item, conf)
+            log.info("Processing:" + media_root + "," + vessel + "," + file_item)
+            # process_file_task.delay(vessel, file_item, conf)
             queues.enqueue({"vessel": vessel, "file_item": file_item, "conf": conf})
 
     queues.join()
-    log.info("... "+time.strftime("%A, %d. %B %Y %I:%M:%S %p")+" finish.")
+    log.info("... " + time.strftime("%A, %d. %B %Y %I:%M:%S %p") + " finish.")
 
 
 api = Api(app)
 process_files()
 
+
 @api.route('/publickey')
 class public_key(Resource):
     def get(self):
-        return send_from_directory('keys', "dynamo-store-public.pem", as_attachment=True)
+        return send_file("keys/dynamo-store-public.pem", as_attachment=True)
+
 
 @api.route('/upload/<selfId>')
 class my_file_upload(Resource):
     @api.expect(file_upload)
     def post(self, selfId):
-
         args = file_upload.parse_args()
-        log.debug(args['file'].mimetype)
+
         if args['file'].mimetype == 'application/octet-stream':
-            destination = os.path.join(current_app.config.get('DATA_FOLDER'), 'media/'+str(selfId)+"/")
+            destination = os.path.join(current_app.config.get('MEDIA_ROOT'), str(selfId) + "/")
             if not os.path.exists(destination):
                 os.makedirs(destination)
 
-            done=False
+            done = False
             while not done:
                 temp_name = next(tempfile._get_candidate_names())
-                file_path = '%s%s%s' % (destination,temp_name, '.log.gz.enc')
+                file_path = '%s%s%s' % (destination, temp_name, '.log.gz.enc')
                 if os.path.isfile(file_path) is False:
-                    done=True
-            log.debug("Path: "+str(file_path))
+                    done = True
 
             args['file'].save(file_path)
 
             conf = get_conf()
-
-            #task = process_file_task.delay(selfId, file_path, conf)
-            queues.enqueue({"vessel": selfId, "file_item": temp_name+'.log.gz.enc', "conf": conf})
+            # task = process_file_task.delay(selfId, file_path, conf)
+            queues.enqueue({"vessel": selfId, "file_item": temp_name + '.log.gz.enc', "conf": conf})
         else:
-            abort(404)
+            return {"error": "File mimetype must be application/octet-stream"}, 422
+
         return {'status': 'Done'}
-
-
 
 
 if __name__ == '__main__':

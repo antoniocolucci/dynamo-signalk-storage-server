@@ -1,4 +1,4 @@
-import Queue
+import queue
 import threading
 
 
@@ -21,7 +21,7 @@ class Queues(object):
             self.q.task_done()
 
     def start(self):
-        self.q = Queue.Queue()
+        self.q = queue.Queue()
         self.threads = []
         for i in range(self.num_worker_threads):
             t = threading.Thread(target=self.worker)
@@ -41,9 +41,8 @@ class Queues(object):
     def join(self):
         self.q.join()
 
+
 def main():
-
-
     def myworker(queue_item):
         print("myworker:"+queue_item)
 
@@ -52,6 +51,7 @@ def main():
     queues.enqueue("Hello")
     queues.join()
     queues.stop()
+
 
 if __name__ == "__main__":
     main()

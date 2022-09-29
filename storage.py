@@ -21,7 +21,7 @@ def store_updatelist_csv(update_list, options):
                 if isinstance(value,dict):
                     value=json.dumps(value)
 
-                if isinstance(value, basestring):
+                if isinstance(value, str):
                     value="'"+value+"'"
 
                 row=context+";"+timestamp+";"+str(value)+"\n"
@@ -55,7 +55,7 @@ def store_updatelist(update_list, options):
                     data_table = metadata.tables[table_name]
 
                 except Exception as e:
-                    print e
+                    print(e)
 
 
                     if path == "navigation.position":
@@ -71,7 +71,7 @@ def store_updatelist(update_list, options):
                     else:
                         if isinstance(value, dict):
                             value_datatype = JSON
-                        elif isinstance(value, basestring):
+                        elif isinstance(value, str):
                             value_datatype = Text
                         else:
                             value_datatype = Float
@@ -114,7 +114,7 @@ def store_updatelist(update_list, options):
                         conn.execute(sql_string)
                         conn.close()
                     except Exception as e:
-                        print e
+                        print(e)
 
 
 def main():
@@ -224,7 +224,7 @@ def main():
     s = select([navigation_position])
     rows = conn.execute(s)
     for row in rows:
-        print row
+        print(row)
 
 
 if __name__ == "__main__":

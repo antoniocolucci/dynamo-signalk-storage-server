@@ -17,6 +17,7 @@ from os.path import isdir, isfile, join
 
 from storage import store_updatelist_csv
 
+
 def verify_sign(public_key_loc, signature, data):
     '''
     Verifies with a public key from whom the data came that it was indeed
@@ -30,14 +31,16 @@ def verify_sign(public_key_loc, signature, data):
     rsakey = RSA.importKey(pub_key)
     signer = PKCS1_v1_5.new(rsakey)
     digest = SHA256.new()
-    digest.update(data)
+    digest.update(data.encode("utf-8"))
     if signer.verify(digest, b64decode(signature)):
         return True
     return False
 
+
 def unpad (padded):
-    pad = ord(padded[-1])
+    pad = padded[-1]
     return padded[:-pad]
+
 
 def get_encoded_encrypted_symmetric_key(src_path, enc_path):
     encoded_encrypted_symmetric_key = None
@@ -52,12 +55,14 @@ def get_encoded_encrypted_symmetric_key(src_path, enc_path):
 
     return encoded_encrypted_symmetric_key
 
+
 def get_symmetric_key(private_key_filename, encoded_encrypted_symmetric_key):
     rsa_key = RSA.importKey(open(private_key_filename, "rb").read())
     rsa_key = PKCS1_OAEP.new(rsa_key)
     decoded_encrypted_symmetric_key=b64decode(encoded_encrypted_symmetric_key)
     symmetric_key=rsa_key.decrypt(decoded_encrypted_symmetric_key)
     return symmetric_key
+
 
 def uncrypt_update_list(public_key_filename, symmetric_key, enc_path):
     update_list = []
@@ -71,9 +76,8 @@ def uncrypt_update_list(public_key_filename, symmetric_key, enc_path):
         m = sha256()
         m.update(symmetric_key)
         key = m.digest()
-        aes = AES.new(key, AES.MODE_CBC, buffer(iv[:16]))
-        result = aes.decrypt(buffer(enc[16:]))
-        result = unpad(result)
+        aes = AES.new(key, AES.MODE_CBC, iv)
+        result = unpad(aes.decrypt(enc[16:]))
 
         # bbb=bytearray(result)
         # print ','.join('{:02x}'.format(x) for x in bbb)
@@ -85,7 +89,6 @@ def uncrypt_update_list(public_key_filename, symmetric_key, enc_path):
             gunzipped_bytes_obj = fo.read()
 
         result=gunzipped_bytes_obj.decode()
-        result=result.decode("utf-8")
 
         lines = result.splitlines()
         meta_data = json.loads(lines[0])
@@ -102,6 +105,7 @@ def uncrypt_update_list(public_key_filename, symmetric_key, enc_path):
                 raise ValueError('Invalid signature') 
             
     return update_list
+
 
 def process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root):
 
@@ -134,6 +138,7 @@ def process_updates(media_root, scratch_root, trash_root, csv_root, private_key_
 
             os.rename(src_path, trash_root + "/"+vessel + "/" + file )
 
+
 def main():
     media_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/media/"
     scratch_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/scratch/"
@@ -143,6 +148,7 @@ def main():
     public_key_root = "/home/ccmmma/dev/dynamo-store/keys/public"
 
     process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root)
+
 
 def static_test():
     media_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/media/"
@@ -206,9 +212,9 @@ def static_test():
 
         if encrypted_signature is not None:
             if verify_sign(public_key_filename, encrypted_signature, log_file):
-                print "OK"
+                print("OK")
             else:
-                print "Invalid"
+                print("Invalid")
 
 
 if __name__ == "__main__":

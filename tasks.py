@@ -16,6 +16,7 @@ h = logging.StreamHandler()
 h.setFormatter(fmt)
 log.addHandler(h)
 
+
 def process_file_queue(args):
     process_file_task(args["vessel"], args["file_item"], args["conf"])
 
@@ -37,7 +38,7 @@ def process_file_task(vessel, file_item, conf):
 
     log.info("Processing: " + src_path)
     try:
-        os.mkdir(scratch_root + "/" + vessel)
+        os.makedirs(scratch_root + "/" + vessel)
     except:
         pass
 
@@ -62,7 +63,7 @@ def process_file_task(vessel, file_item, conf):
     shutil.rmtree(scratch_dir)
 
     try:
-        os.mkdir(trash_root + "/" + vessel)
+        os.makedirs(trash_root + "/" + vessel)
     except:
         pass
 
