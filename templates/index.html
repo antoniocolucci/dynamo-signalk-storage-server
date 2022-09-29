@@ -56,7 +56,7 @@
     function updatePosition() {
         layerGroup.clearLayers();
 
-        fetch("http://saturn.uniparthenope.it:13387/lastPosition").then(response => response.json()).then(data => {
+        fetch("/lastPosition").then(response => response.json()).then(data => {
             for (let i=0; i<data.length; i++) {
                 let marker = L.marker([data[i]["value"]["latitude"], data[i]["value"]["longitude"]]).addTo(layerGroup);
                 marker.bindPopup(data[i]["id"]).openPopup();
