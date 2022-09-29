@@ -5,9 +5,9 @@ WORKDIR /dynamo-storage
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-RUN MKDIR -p data/media
-RUN MKDIR -p data/scratch
-RUN MKDIR -p data/trash
+RUN mkdir -p data/media
+RUN mkdir -p data/scratch
+RUN mkdir -p data/trash
 
 COPY keys keys
 COPY app.py app.py
