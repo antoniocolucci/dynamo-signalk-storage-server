@@ -5,11 +5,14 @@ import sys
 import tempfile
 import time
 import werkzeug
+import json
 from celery import Celery
-from flask import Flask, Blueprint, url_for, jsonify, current_app, abort, send_file
+from flask import Flask, Blueprint, url_for, jsonify, current_app, abort, send_file, render_template
 from flask_restplus import Api, Resource, reqparse
 from os import listdir
 from os.path import isdir, isfile, join
+from sqlalchemy import create_engine
+from flask_cors import CORS
 
 from queues import Queues
 from tasks import process_file_task, process_file_queue
@@ -33,6 +36,7 @@ file_upload.add_argument('sessionId',
                          help="Session unique identifier")
 
 app = Flask(__name__)
+CORS(app)
 
 app.config.from_pyfile('config.cfg', silent=True)  # instance-folders configuration
 
@@ -126,6 +130,32 @@ class my_file_upload(Resource):
             return {"error": "File mimetype must be application/octet-stream"}, 422
 
         return {'status': 'Done'}
+
+
+@api.route('/lastPosition')
+class last_position(Resource):
+    def get(self):
+        conf = get_conf()
+
+        connection_string = conf["connection_string"]
+        engine = create_engine(connection_string, echo=False)
+        conn = engine.connect()
+
+        result = conn.execute("SELECT context, timestamp, value FROM public.navigation_position np1 WHERE timestamp = ( SELECT MAX( np2.timestamp ) FROM public.navigation_position np2 WHERE np1.context = np2.context ) ORDER BY context;")
+        positions = []
+        for row in result:
+            positions.append({
+                "context": row[0],
+                "timestamp": str(row[1]),
+                "value": row[2]
+            })
+        conn.close()
+        return positions
+
+
+@app.route('/map')
+def index():
+    return render_template('index.html')
 
 
 if __name__ == '__main__':

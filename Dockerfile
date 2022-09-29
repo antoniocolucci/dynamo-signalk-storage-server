@@ -10,13 +10,14 @@ RUN mkdir -p data/scratch
 RUN mkdir -p data/trash
 
 COPY keys keys
-COPY app.py app.py
 COPY config.cfg config.cfg
 COPY queues.py queues.py
 COPY storage.py storage.py
 COPY store.py store.py
 COPY tasks.py tasks.py
 COPY uncompress.py uncompress.py
+COPY templates/ templates/
+COPY app.py app.py
 
 COPY dynamo-storage.sh dynamo-storage.sh
 
