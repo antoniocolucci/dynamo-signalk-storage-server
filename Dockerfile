@@ -16,6 +16,7 @@ COPY storage.py storage.py
 COPY store.py store.py
 COPY tasks.py tasks.py
 COPY uncompress.py uncompress.py
+COPY static/ static/
 COPY templates/ templates/
 COPY app.py app.py
 
