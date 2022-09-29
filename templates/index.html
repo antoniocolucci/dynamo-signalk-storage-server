@@ -37,7 +37,8 @@
 
         fetch("/lastPosition").then(response => response.json()).then(data => {
             for (let i=0; i<data.length; i++) {
-                L.marker([data[i]["value"]["latitude"], data[i]["value"]["longitude"]]).addTo(layerGroup);
+                let marker = L.marker([data[i]["value"]["latitude"], data[i]["value"]["longitude"]]).addTo(layerGroup);
+                marker.bindPopup(data[i]["id"]).openPopup();
             }
         })
     }

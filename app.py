@@ -145,7 +145,7 @@ class last_position(Resource):
         positions = []
         for row in result:
             positions.append({
-                "context": row[0],
+                "id": row[0].split(":")[-1],
                 "timestamp": str(row[1]),
                 "value": row[2]
             })
