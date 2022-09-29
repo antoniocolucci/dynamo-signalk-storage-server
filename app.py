@@ -44,7 +44,7 @@ def myworker(queue_item):
     print("myworker:" + queue_item)
 
 
-queues = Queues(process_file_queue, 1)
+queues = Queues(process_file_queue, 8)
 queues.start()
 
 
