@@ -51,14 +51,20 @@
 
     L.control.watermark({ position: 'bottomleft' }).addTo(map);
 
+    var icon = L.icon({
+        iconUrl:      'static/images/boat.png',
+        iconSize:     [40, 40],
+        popupAnchor:  [0, -20]
+    });
+
 	let layerGroup = L.layerGroup().addTo(map);
 
     function updatePosition() {
         layerGroup.clearLayers();
 
-        fetch("/lastPosition").then(response => response.json()).then(data => {
+        fetch("http://saturn.uniparthenope.it:13387/lastPosition").then(response => response.json()).then(data => {
             for (let i=0; i<data.length; i++) {
-                let marker = L.marker([data[i]["value"]["latitude"], data[i]["value"]["longitude"]]).addTo(layerGroup);
+                let marker = L.marker([data[i]["value"]["latitude"], data[i]["value"]["longitude"]], {icon: icon}).addTo(layerGroup);
                 marker.bindPopup(data[i]["id"]).openPopup();
             }
         })
