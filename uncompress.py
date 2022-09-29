@@ -140,19 +140,19 @@ def process_updates(media_root, scratch_root, trash_root, csv_root, private_key_
 
 
 def main():
-    media_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/media/"
-    scratch_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/scratch/"
-    trash_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/trash/"
-    csv_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/csv/"
-    private_key_filename = "/home/ccmmma/dev/dynamo-store/keys/dynamo-store-private.pem"
-    public_key_root = "/home/ccmmma/dev/dynamo-store/keys/public"
+    media_root = "data/media/"
+    scratch_root = "data/scratch/"
+    trash_root = "data/trash/"
+    csv_root = "data/csv/"
+    private_key_filename = "keys/dynamo-store-private.pem"
+    public_key_root = "keys/public"
 
     process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root)
 
 
 def static_test():
-    media_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/media/"
-    scratch_root = "/data2/ccmmma/prometeo/data/dynamo-store/data_folder/scratch/"
+    media_root = "data/media/"
+    scratch_root = "data/scratch/"
     private_key_filename = "keys/dynamo-store-private.pem"
 
     enc_file = "RKB5p1.log.gz.enc"
