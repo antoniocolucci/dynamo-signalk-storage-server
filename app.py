@@ -135,21 +135,26 @@ class my_file_upload(Resource):
 @api.route('/lastPosition')
 class last_position(Resource):
     def get(self):
+        positions = []
+
         conf = get_conf()
 
         connection_string = conf["connection_string"]
         engine = create_engine(connection_string, echo=False)
         conn = engine.connect()
 
-        result = conn.execute("SELECT context, timestamp, value FROM public.navigation_position np1 WHERE timestamp = ( SELECT MAX( np2.timestamp ) FROM public.navigation_position np2 WHERE np1.context = np2.context ) ORDER BY context;")
-        positions = []
-        for row in result:
-            positions.append({
-                "id": row[0].split(":")[-1],
-                "timestamp": str(row[1]),
-                "value": row[2]
-            })
-        conn.close()
+        try:
+            result = conn.execute("SELECT context, timestamp, value FROM public.navigation_position np1 WHERE timestamp = ( SELECT MAX( np2.timestamp ) FROM public.navigation_position np2 WHERE np1.context = np2.context ) ORDER BY context;")
+            for row in result:
+                positions.append({
+                    "id": row[0].split(":")[-1],
+                    "timestamp": str(row[1]),
+                    "value": row[2]
+                })
+            conn.close()
+        except:
+            conn.close()
+
         return positions
 
 
