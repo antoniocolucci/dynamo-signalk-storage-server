@@ -1,8 +1,9 @@
 import tempfile
 
-import celery
 
-import os, shutil
+
+import os
+import shutil
 import logging
 
 from uncompress import get_encoded_encrypted_symmetric_key, get_symmetric_key, uncrypt_update_list
@@ -21,7 +22,10 @@ def process_file_queue(args):
     process_file_task(args["directory"], args["file_item"], args["conf"])
 
 
-@celery.task
+from app import celery_app
+
+
+@celery_app.task
 def process_file_task(directory, file_item, conf):
 
     # Retrieve the media root (where the flask route saves the "type.context/...log.gz.enc" files
