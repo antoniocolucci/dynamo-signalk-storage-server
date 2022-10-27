@@ -48,30 +48,27 @@ def myworker(queue_item):
     print("myworker:" + queue_item)
 
 
-queues = Queues(process_file_queue, 8)
-queues.start()
-
-
 def get_conf():
-    media_root = app.config.get("MEDIA_ROOT")
-    scratch_root = app.config.get("SCRATCH_ROOT")
-    trash_root = app.config.get("TRASH_ROOT")
-
-    connection_string = app.config.get("CONNECTION_STRING")
-
-    private_key_filename = app.config.get("PRIVATE_KEY_FILENAME")
-    public_key_root = app.config.get("PUBLIC_KEY_ROOT")
 
     conf = {
-        "media_root": media_root,
-        "scratch_root": scratch_root,
-        "trash_root": trash_root,
-        "connection_string": connection_string,
-        "private_key_filename": private_key_filename,
-        "public_key_root": public_key_root
+        "media_root": app.config.get("MEDIA_ROOT"),
+        "scratch_root": app.config.get("SCRATCH_ROOT"),
+        "trash_root": app.config.get("TRASH_ROOT"),
+        "connection_string": app.config.get("CONNECTION_STRING"),
+        "private_key_filename": app.config.get("PRIVATE_KEY_FILENAME"),
+        "public_key_filename": app.config.get("PUBLIC_KEY_FILENAME"),
+        "public_key_root": app.config.get("PUBLIC_KEY_ROOT"),
+        "queue_concurrency": 1
     }
 
     return conf
+
+
+# Define the queue
+queues = Queues(process_file_queue, get_conf()["concurrency"])
+
+# Start the queue
+queues.start()
 
 
 def process_files():
@@ -80,14 +77,14 @@ def process_files():
     conf = get_conf()
     media_root = conf["media_root"]
 
-    vessels = [f for f in listdir(media_root) if isdir(join(media_root, f))]
-    for vessel in vessels:
-        vessel_root = media_root + "/" + vessel
-        files = [f for f in listdir(vessel_root) if isfile(join(vessel_root, f))]
+    directories = [f for f in listdir(media_root) if isdir(join(media_root, f))]
+    for directory in directories:
+        directory_root = media_root + "/" + directory
+        files = [f for f in listdir(directory_root) if isfile(join(directory_root, f))]
         for file_item in files:
-            log.info("Processing:" + media_root + "," + vessel + "," + file_item)
+            log.info("Processing:" + media_root + "," + directory + "," + file_item)
             # process_file_task.delay(vessel, file_item, conf)
-            queues.enqueue({"vessel": vessel, "file_item": file_item, "conf": conf})
+            queues.enqueue({"directory": directory, "file_item": file_item, "conf": conf})
 
     queues.join()
     log.info("... " + time.strftime("%A, %d. %B %Y %I:%M:%S %p") + " finish.")
@@ -98,13 +95,14 @@ process_files()
 
 
 @api.route('/publickey')
-class public_key(Resource):
+class PublicKey(Resource):
     def get(self):
-        return send_file("keys/dynamo-store-public.pem", as_attachment=True)
+        conf = get_conf()
+        return send_file(conf["public_key_filename"], as_attachment=True)
 
 
 @api.route('/upload/<selfId>')
-class my_file_upload(Resource):
+class ParcelUpload(Resource):
     @api.expect(file_upload)
     def post(self, selfId):
         args = file_upload.parse_args()
@@ -125,7 +123,7 @@ class my_file_upload(Resource):
 
             conf = get_conf()
             # task = process_file_task.delay(selfId, file_path, conf)
-            queues.enqueue({"vessel": selfId, "file_item": temp_name + '.log.gz.enc', "conf": conf})
+            queues.enqueue({"directory": selfId, "file_item": temp_name + '.log.gz.enc', "conf": conf})
         else:
             return {"error": "File mimetype must be application/octet-stream"}, 422
 
@@ -133,7 +131,7 @@ class my_file_upload(Resource):
 
 
 @api.route('/lastPosition')
-class last_position(Resource):
+class LastPosition(Resource):
     def get(self):
         positions = []
 
@@ -144,7 +142,8 @@ class last_position(Resource):
         conn = engine.connect()
 
         try:
-            result = conn.execute("SELECT context, timestamp, value FROM public.navigation_position np1 WHERE timestamp = ( SELECT MAX( np2.timestamp ) FROM public.navigation_position np2 WHERE np1.context = np2.context ) ORDER BY context;")
+            result = conn.execute(
+                "SELECT context, timestamp, value FROM public.navigation_position np1 WHERE timestamp = ( SELECT MAX( np2.timestamp ) FROM public.navigation_position np2 WHERE np1.context = np2.context ) ORDER BY context;")
             for row in result:
                 positions.append({
                     "id": row[0].split(":")[-1],
