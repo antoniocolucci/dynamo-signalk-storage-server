@@ -35,7 +35,7 @@ class Queues(object):
         for t in self.threads:
             t.join()
 
-    def enqueue(self,queue_item):
+    def enqueue(self, queue_item):
         self.q.put(queue_item)
 
     def join(self):
