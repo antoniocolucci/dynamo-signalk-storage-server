@@ -37,7 +37,7 @@ def verify_sign(public_key_loc, signature, data):
     return False
 
 
-def unpad (padded):
+def unpad(padded):
     pad = padded[-1]
     return padded[:-pad]
 
@@ -46,7 +46,7 @@ def get_encoded_encrypted_symmetric_key(src_path, enc_path):
     encoded_encrypted_symmetric_key = None
 
     with open(src_path, "rb") as f_in:
-        encoded_encrypted_symmetric_key=f_in.readline().decode('utf-8')
+        encoded_encrypted_symmetric_key = f_in.readline().decode('utf-8')
         with open(enc_path, 'wb') as f_out:
             data = f_in.read(10000)
             while data:
@@ -59,8 +59,8 @@ def get_encoded_encrypted_symmetric_key(src_path, enc_path):
 def get_symmetric_key(private_key_filename, encoded_encrypted_symmetric_key):
     rsa_key = RSA.importKey(open(private_key_filename, "rb").read())
     rsa_key = PKCS1_OAEP.new(rsa_key)
-    decoded_encrypted_symmetric_key=b64decode(encoded_encrypted_symmetric_key)
-    symmetric_key=rsa_key.decrypt(decoded_encrypted_symmetric_key)
+    decoded_encrypted_symmetric_key = b64decode(encoded_encrypted_symmetric_key)
+    symmetric_key = rsa_key.decrypt(decoded_encrypted_symmetric_key)
     return symmetric_key
 
 
@@ -88,55 +88,54 @@ def uncrypt_update_list(public_key_filename, symmetric_key, enc_path):
         with gzip.GzipFile(fileobj=in_, mode='rb') as fo:
             gunzipped_bytes_obj = fo.read()
 
-        result=gunzipped_bytes_obj.decode()
+        result = gunzipped_bytes_obj.decode()
 
         lines = result.splitlines()
         meta_data = json.loads(lines[0])
         encrypted_signature = meta_data["signature"]
         # print ("Encrypted Signature:" + encrypted_signature)
 
-        log_file = ''.join(line+"\n" for line in lines[1:])
+        log_file = ''.join(line + "\n" for line in lines[1:])
 
         if encrypted_signature is not None:
             if verify_sign(public_key_filename, encrypted_signature, log_file):
                 for line in lines[1:]:
                     update_list.append(json.loads(line))
             else:
-                raise ValueError('Invalid signature') 
-            
+                raise ValueError('Invalid signature')
+
     return update_list
 
 
 def process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root):
-
     vessels = [f for f in listdir(media_root) if isdir(join(media_root, f))]
     for vessel in vessels:
-        public_key_filename=public_key_root+"/"+vessel+"-public.pem"
-        vessel_root=media_root+"/"+vessel
+        public_key_filename = public_key_root + "/" + vessel + "-public.pem"
+        vessel_root = media_root + "/" + vessel
         files = [f for f in listdir(vessel_root) if isfile(join(vessel_root, f))]
         for file in files:
-            src_path=vessel_root+"/"+file
+            src_path = vessel_root + "/" + file
             try:
-                os.mkdir(scratch_root+"/"+vessel)
+                os.mkdir(scratch_root + "/" + vessel)
             except:
                 pass
-            scratch_dir=tempfile.mkdtemp(dir=scratch_root+"/"+vessel)
+            scratch_dir = tempfile.mkdtemp(dir=scratch_root + "/" + vessel)
             enc_path = scratch_dir + "/" + file
 
-            encoded_encrypted_symmetric_key=get_encoded_encrypted_symmetric_key(src_path,enc_path)
-            
-            symmetric_key=get_symmetric_key(private_key_filename, encoded_encrypted_symmetric_key)
-            update_list=uncrypt_update_list(public_key_filename, symmetric_key, enc_path)
-            store_updatelist_csv(update_list, { "csv_root": csv_root} )
+            encoded_encrypted_symmetric_key = get_encoded_encrypted_symmetric_key(src_path, enc_path)
+
+            symmetric_key = get_symmetric_key(private_key_filename, encoded_encrypted_symmetric_key)
+            update_list = uncrypt_update_list(public_key_filename, symmetric_key, enc_path)
+            store_updatelist_csv(update_list, {"csv_root": csv_root})
 
             shutil.rmtree(scratch_dir)
 
             try:
-                os.mkdir(trash_root+"/"+vessel)
+                os.mkdir(trash_root + "/" + vessel)
             except:
                 pass
 
-            os.rename(src_path, trash_root + "/"+vessel + "/" + file )
+            os.rename(src_path, trash_root + "/" + vessel + "/" + file)
 
 
 def main():
@@ -144,7 +143,7 @@ def main():
     scratch_root = "data/scratch/"
     trash_root = "data/trash/"
     csv_root = "data/csv/"
-    private_key_filename = "keys/dynamo-store-private.pem"
+    private_key_filename = "keys/dynamo-storage-private.pem"
     public_key_root = "keys/public"
 
     process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root)
@@ -153,17 +152,17 @@ def main():
 def static_test():
     media_root = "data/media/"
     scratch_root = "data/scratch/"
-    private_key_filename = "keys/dynamo-store-private.pem"
+    private_key_filename = "keys/dynamo-storage-private.pem"
 
     enc_file = "RKB5p1.log.gz.enc"
 
-    src_path=media_root+"/"+enc_file
-    scratch_dir=tempfile.mkdtemp(dir=scratch_root)
+    src_path = media_root + "/" + enc_file
+    scratch_dir = tempfile.mkdtemp(dir=scratch_root)
 
     enc_path = scratch_dir + "/" + enc_file
 
     with open(src_path, "rb") as f_in:
-        encoded_encrypted_symmetric_key=f_in.readline().decode('utf-8')
+        encoded_encrypted_symmetric_key = f_in.readline().decode('utf-8')
         with open(enc_path, 'wb') as f_out:
             data = f_in.read(10000)
             while data:
@@ -172,8 +171,8 @@ def static_test():
 
     rsa_key = RSA.importKey(open(private_key_filename, "rb").read())
     rsa_key = PKCS1_OAEP.new(rsa_key)
-    decoded_encrypted_symmetric_key=b64decode(encoded_encrypted_symmetric_key)
-    symmetric_key=rsa_key.decrypt(decoded_encrypted_symmetric_key)
+    decoded_encrypted_symmetric_key = b64decode(encoded_encrypted_symmetric_key)
+    symmetric_key = rsa_key.decrypt(decoded_encrypted_symmetric_key)
 
     # print ("Symmetric Key:"+str(symmetric_key))
 
@@ -200,15 +199,15 @@ def static_test():
         with gzip.GzipFile(fileobj=in_, mode='rb') as fo:
             gunzipped_bytes_obj = fo.read()
 
-        result=gunzipped_bytes_obj.decode()
-        result=result.decode("utf-8")
+        result = gunzipped_bytes_obj.decode()
+        result = result.decode("utf-8")
 
         lines = result.splitlines()
         meta_data = json.loads(lines[0])
         encrypted_signature = meta_data["signature"]
         # print ("Encrypted Signature:" + encrypted_signature)
 
-        log_file = ''.join(line+"\n" for line in lines[1:])
+        log_file = ''.join(line + "\n" for line in lines[1:])
 
         if encrypted_signature is not None:
             if verify_sign(public_key_filename, encrypted_signature, log_file):
