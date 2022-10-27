@@ -12,9 +12,9 @@ $ cd dynamo-storage
 
 $ cd keys
 
-$ openssl genrsa -out dynamo-store-private.pem 2048
+$ openssl genrsa -out dynamo-storage-private.pem 2048
 
-$ openssl rsa -in dynamo-store-private.pem -outform PEM -pubout -out dynamo-store-public.pem
+$ openssl rsa -in dynamo-storage-private.pem -outform PEM -pubout -out dynamo-storage-public.pem
 
 $ mkdir public
 
