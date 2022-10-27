@@ -18,53 +18,74 @@ log.addHandler(h)
 
 
 def process_file_queue(args):
-    process_file_task(args["vessel"], args["file_item"], args["conf"])
+    process_file_task(args["directory"], args["file_item"], args["conf"])
 
 
 @celery.task
-def process_file_task(vessel, file_item, conf):
+def process_file_task(directory, file_item, conf):
+
+    # Retrieve the media root (where the flask route saves the "type.context/...log.gz.enc" files
     media_root = conf["media_root"]
+
+    # Retrieve the scratch root (where the "type.context/...log.gz.enc" files are unzipped, decrypted and processed.
     scratch_root = conf["scratch_root"]
+
+    # Retrieve the trash root (where the "type.context/...log.gz.enc" files are stored before removed forever)
     trash_root = conf["trash_root"]
 
+    # Get the connection string
     connection_string = conf["connection_string"]
 
+    # Get the local private key file name
     private_key_filename = conf["private_key_filename"]
-    public_key_root = conf["public_key_root"]
 
-    public_key_filename = public_key_root + "/" + vessel + "-public.pem"
+    # Check if the local private key exists
+    if os.path.isfile(private_key_filename):
 
-    src_path = media_root+"/"+vessel+"/"+file_item
+        # Get the public key root (where the public keys are stored in the format type.context-public.pem
+        public_key_root = conf["public_key_root"]
 
-    log.info("Processing: " + src_path)
-    try:
-        os.makedirs(scratch_root + "/" + vessel)
-    except:
-        pass
+        # Set the public key file name
+        public_key_filename = public_key_root + "/" + directory + "-public.pem"
 
-    scratch_dir = tempfile.mkdtemp(dir=scratch_root + "/" + vessel)
-    enc_path = scratch_dir + "/" + file_item
+        # Check if the file exists
+        if os.path.isfile(public_key_filename):
 
-    try:
-        log.debug("Get Eencoded Encrypted Symmetric Key")
-        encoded_encrypted_symmetric_key = get_encoded_encrypted_symmetric_key(src_path, enc_path)
+            src_path = media_root + "/" + directory + "/" + file_item
 
-        log.debug("Get Symmetric Key")
-        symmetric_key = get_symmetric_key(private_key_filename, encoded_encrypted_symmetric_key)
+            log.info("Processing: " + src_path)
+            try:
+                os.makedirs(scratch_root + "/" + directory)
+            except FileExistsError as e:
+                pass
 
-        log.debug("Uncrypt Update List")
-        update_list = uncrypt_update_list(public_key_filename, symmetric_key, enc_path)
+            scratch_dir = tempfile.mkdtemp(dir=scratch_root + "/" + directory)
+            enc_path = scratch_dir + "/" + file_item
 
-        log.debug("Store Update List")
-        store_updatelist(update_list, {"connection_string": connection_string})
-    except ValueError as e:
-        log.error("Exception:", e)
+            try:
+                log.debug("Get Encoded Encrypted Symmetric Key")
+                encoded_encrypted_symmetric_key = get_encoded_encrypted_symmetric_key(src_path, enc_path)
 
-    shutil.rmtree(scratch_dir)
+                log.debug("Get Symmetric Key")
+                symmetric_key = get_symmetric_key(private_key_filename, encoded_encrypted_symmetric_key)
 
-    try:
-        os.makedirs(trash_root + "/" + vessel)
-    except:
-        pass
+                log.debug("Decrypt the Update List")
+                update_list = uncrypt_update_list(public_key_filename, symmetric_key, enc_path)
 
-    os.rename(src_path, trash_root + "/" + vessel + "/" + file_item)
+                log.debug("Store the Update List")
+                store_updatelist(update_list, {"connection_string": connection_string})
+
+                shutil.rmtree(scratch_dir)
+
+            except Exception as exception:
+                log.error(exception)
+            try:
+                os.makedirs(trash_root + "/" + directory)
+            except FileExistsError as e:
+                pass
+
+            os.rename(src_path, trash_root + "/" + directory + "/" + file_item)
+        else:
+            log.debug("Public key file missing: " + public_key_filename)
+    else:
+        log.debug("Private key file missing: " + private_key_filename)
