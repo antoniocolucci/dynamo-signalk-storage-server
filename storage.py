@@ -222,11 +222,6 @@ def store_updatelist(update_list, options):
                                                  ")"
                                     }
                                 else:
-                                    # Check if the value is a dictionary
-                                    if isinstance(value_data, dict):
-
-                                        # Dumps the value as a string
-                                        value_data = json.dumps(value_data)
 
                                     # Prepare the parameters
                                     params = {
