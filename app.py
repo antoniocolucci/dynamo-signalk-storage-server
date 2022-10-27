@@ -1,21 +1,21 @@
 import logging
 import os
-import shutil
-import sys
 import tempfile
 import time
-import werkzeug
-import json
+
 from celery import Celery
-from flask import Flask, Blueprint, url_for, jsonify, current_app, abort, send_file, render_template
-from flask_restplus import Api, Resource, reqparse
+
+from werkzeug.datastructures import FileStorage
+
+from flask import Flask, current_app, send_file, render_template, request
+from flask_restx import Api, Resource
 from os import listdir
 from os.path import isdir, isfile, join
 from sqlalchemy import create_engine
 from flask_cors import CORS
 
 from queues import Queues
-from tasks import process_file_task, process_file_queue
+from tasks import process_file_queue
 
 log = logging.getLogger('app')
 log.setLevel(logging.DEBUG)  # DEBUG
@@ -25,23 +25,13 @@ h = logging.StreamHandler()
 h.setFormatter(fmt)
 log.addHandler(h)
 
-file_upload = reqparse.RequestParser()
-file_upload.add_argument('file',
-                         type=werkzeug.datastructures.FileStorage,
-                         location='files',
-                         required=True,
-                         help='DYNAMO log.gz.enc file')
-file_upload.add_argument('sessionId',
-                         required=True,
-                         help="Session unique identifier")
-
 app = Flask(__name__)
 CORS(app)
 
 app.config.from_pyfile('config.cfg', silent=True)  # instance-folders configuration
 
-celery = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broker=app.config['CELERY_BROKER_URL'])
-celery.conf.update(app.config)
+celery_app = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broker=app.config['CELERY_BROKER_URL'])
+celery_app.conf.update(app.config)
 
 
 def myworker(queue_item):
@@ -49,7 +39,6 @@ def myworker(queue_item):
 
 
 def get_conf():
-
     conf = {
         "media_root": app.config.get("MEDIA_ROOT"),
         "scratch_root": app.config.get("SCRATCH_ROOT"),
@@ -65,7 +54,7 @@ def get_conf():
 
 
 # Define the queue
-queues = Queues(process_file_queue, get_conf()["concurrency"])
+queues = Queues(process_file_queue, get_conf()["queue_concurrency"])
 
 # Start the queue
 queues.start()
@@ -90,7 +79,10 @@ def process_files():
     log.info("... " + time.strftime("%A, %d. %B %Y %I:%M:%S %p") + " finish.")
 
 
+# Create the api object using restx
 api = Api(app)
+
+# Process files still to be processed
 process_files()
 
 
@@ -100,34 +92,67 @@ class PublicKey(Resource):
         conf = get_conf()
         return send_file(conf["public_key_filename"], as_attachment=True)
 
+# Create an api parser
+upload_parser = api.parser()
 
-@api.route('/upload/<selfId>')
+# Add parser for file storage
+upload_parser.add_argument('file', location='files', type=FileStorage, required=True, help='DYNAMO log.gz.enc file')
+
+# Add parser for session id
+upload_parser.add_argument('sessionId', required=True, help="Session unique identifier")
+
+
+@api.route('/upload/<self_id>')
+@api.expect(upload_parser)
 class ParcelUpload(Resource):
-    @api.expect(file_upload)
-    def post(self, selfId):
-        args = file_upload.parse_args()
+    def post(self, self_id):
 
-        if args['file'].mimetype == 'application/octet-stream':
-            destination = os.path.join(current_app.config.get('MEDIA_ROOT'), str(selfId) + "/")
+        # This is FileStorage instance
+        uploaded_file = request.files['file']
+
+        # Check if the myme is application/octet-stream
+        if uploaded_file.mimetype == 'application/octet-stream':
+
+            # Compose the destination directory
+            destination = os.path.join(current_app.config.get('MEDIA_ROOT'), str(self_id) + "/")
+
+            # Check if the directory exists
             if not os.path.exists(destination):
+
+                # Make the directory if needed
                 os.makedirs(destination)
 
+            # Set the file path
+            file_path = ""
+
+            # Set the file name
+            temp_name = ""
+
+            # Until the random temporary file name is not unique...
             done = False
             while not done:
+
+                # Generate a temporary file name
                 temp_name = next(tempfile._get_candidate_names())
+
+                # Create a file name
                 file_path = '%s%s%s' % (destination, temp_name, '.log.gz.enc')
+
+                # Check if the file already exists
                 if os.path.isfile(file_path) is False:
+
+                    # If the file doesn't exist, exit the cycle
                     done = True
 
-            args['file'].save(file_path)
+            # Save the uploaded file as the file path
+            uploaded_file.save(file_path)
 
-            conf = get_conf()
-            # task = process_file_task.delay(selfId, file_path, conf)
-            queues.enqueue({"directory": selfId, "file_item": temp_name + '.log.gz.enc', "conf": conf})
+            # Enqueue the task
+            queues.enqueue({"directory": self_id, "file_item": temp_name + '.log.gz.enc', "conf": get_conf()})
         else:
             return {"error": "File mimetype must be application/octet-stream"}, 422
 
-        return {'status': 'Done'}
+        return {'status': 'Done'}, 200
 
 
 @api.route('/lastPosition')
