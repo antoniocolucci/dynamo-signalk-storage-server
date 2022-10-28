@@ -9,6 +9,7 @@ from werkzeug.datastructures import FileStorage
 
 from flask import Flask, current_app, send_file, render_template, request
 from flask_restx import Api, Resource
+from flask_httpauth import HTTPBasicAuth
 from os import listdir
 from os.path import isdir, isfile, join
 from sqlalchemy import create_engine
@@ -17,23 +18,44 @@ from flask_cors import CORS
 from queues import Queues
 from tasks import process_file_queue
 
+# Create the logger
 log = logging.getLogger('app')
-log.setLevel(logging.DEBUG)  # DEBUG
 
+# Set the default logger level as debug
+log.setLevel(logging.DEBUG)
+
+# Create the logger formatter
 fmt = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+
+# Get the handler
 h = logging.StreamHandler()
+
+# Set the formatter
 h.setFormatter(fmt)
+
+# Add the handler to the logger
 log.addHandler(h)
 
+# Create the Flask application
 app = Flask(__name__)
+
+# Set the api enabled for cross server invocation
 CORS(app)
 
-app.config.from_pyfile('config.cfg', silent=True)  # instance-folders configuration
+# Configure the application from the config file
+app.config.from_pyfile('config.cfg', silent=True)
 
+# Get the HTTP Basic Authentication object
+auth = HTTPBasicAuth()
+
+# Create the celery application
 celery_app = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broker=app.config['CELERY_BROKER_URL'])
+
+# Set the celery configuration as the flask application
 celery_app.conf.update(app.config)
 
 
+# Define a worker ToDo: Check if this function is really used
 def myworker(queue_item):
     print("myworker:" + queue_item)
 
@@ -92,6 +114,51 @@ class PublicKey(Resource):
         conf = get_conf()
         return send_file(conf["public_key_filename"], as_attachment=True)
 
+
+@auth.verify_password
+def authenticate(username, password):
+    if username and password:
+        if username == 'admin' and password == 'password':
+            return True
+        else:
+            return False
+    return False
+
+
+# Create an api parser for public key upload
+upload_publickey_parser = api.parser()
+
+# Add parser for file storage
+upload_publickey_parser.add_argument('file', location='files', type=FileStorage, required=True,
+                                     help='DYNAMO Public Key -public.pem file')
+
+
+@api.route('/upload/publickey/<self_id>')
+@api.expect(upload_publickey_parser)
+class PublicKeyUpload(Resource):
+    @auth.login_required
+    def post(self, self_id):
+        # This is FileStorage instance
+        uploaded_file = request.files['file']
+
+        # Check if the mime is plain/text
+        if uploaded_file.mimetype == 'application/x-x509-ca-cert':
+
+            # Compose the destination file path name
+            file_path = os.path.join(current_app.config.get('PUBLIC_KEY_ROOT'), str(self_id) + "-public.pem")
+
+            # Save the uploaded file as the file path
+            uploaded_file.save(file_path)
+
+            # Log the status
+            log.debug("Saved public key as: " + file_path)
+
+            return {"result": "ok", "user": auth.current_user()}, 200
+
+        else:
+            return {"result": "fail", "error": "File mimetype must be application/x-x509-ca-cert"}, 422
+
+
 # Create an api parser
 upload_parser = api.parser()
 
@@ -118,7 +185,6 @@ class ParcelUpload(Resource):
 
             # Check if the directory exists
             if not os.path.exists(destination):
-
                 # Make the directory if needed
                 os.makedirs(destination)
 
@@ -140,7 +206,6 @@ class ParcelUpload(Resource):
 
                 # Check if the file already exists
                 if os.path.isfile(file_path) is False:
-
                     # If the file doesn't exist, exit the cycle
                     done = True
 
@@ -149,10 +214,12 @@ class ParcelUpload(Resource):
 
             # Enqueue the task
             queues.enqueue({"directory": self_id, "file_item": temp_name + '.log.gz.enc', "conf": get_conf()})
-        else:
-            return {"error": "File mimetype must be application/octet-stream"}, 422
 
-        return {'status': 'Done'}, 200
+            return {'result': 'ok'}, 200
+        else:
+            return {'result': 'fail', "error": "File mimetype must be application/octet-stream"}, 422
+
+
 
 
 @api.route('/lastPosition')
