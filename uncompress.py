@@ -143,7 +143,7 @@ def main():
     scratch_root = "data/scratch/"
     trash_root = "data/trash/"
     csv_root = "data/csv/"
-    private_key_filename = "keys/dynamo-storage-private.pem"
+    private_key_filename = "keys/dynamo-signalk-storage-server-private.pem"
     public_key_root = "keys/public"
 
     process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root)
@@ -152,7 +152,7 @@ def main():
 def static_test():
     media_root = "data/media/"
     scratch_root = "data/scratch/"
-    private_key_filename = "keys/dynamo-storage-private.pem"
+    private_key_filename = "keys/dynamo-signalk-storage-server-private.pem"
 
     enc_file = "RKB5p1.log.gz.enc"
 
