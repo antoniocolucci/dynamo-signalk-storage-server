@@ -1,4 +1,5 @@
-# dynamo-storage
+# DYNAMO Signal K storage server
+
 A server for Dynamo data storage, management and processing.
 
 ### How to run with Docker
@@ -8,13 +9,13 @@ From the terminal, enter the folder where you want to keep the project and perfo
 
 $ git clone https://github.com/OpenFairWind/dynamo-storage
 
-$ cd dynamo-storage
+$ cd dynamo-signalk-storage-server
 
 $ cd keys
 
-$ openssl genrsa -out dynamo-storage-private.pem 2048
+$ openssl genrsa -out dynamo-signalk-storage-server-private.pem 2048
 
-$ openssl rsa -in dynamo-storage-private.pem -outform PEM -pubout -out dynamo-storage-public.pem
+$ openssl rsa -in dynamo-signalk-storage-server-private.pem -outform PEM -pubout -out dynamo-signalk-storage-server-public.pem
 
 $ mkdir public
 
@@ -24,7 +25,7 @@ copy client public key here
 
 go to main directory
 
-$ docker build . -t dynamo-storage
+$ docker build . -t dynamo-signalk-storage-server
 
 $ docker-compose up -d
 ```
