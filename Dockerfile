@@ -9,12 +9,12 @@ RUN mkdir -p data/media
 RUN mkdir -p data/scratch
 RUN mkdir -p data/trash
 
-COPY keys keys
+COPY data/keys keys
 COPY config.cfg.sample config.cfg
-COPY queues.py queues.py
-COPY storage.py storage.py
-COPY tasks.py tasks.py
-COPY uncompress.py uncompress.py
+COPY app/queues.py queues.py
+COPY app/storage.py storage.py
+COPY app/tasks.py tasks.py
+COPY app/uncompress.py uncompress.py
 COPY static/ static/
 COPY templates/ templates/
 COPY app.py app.py
