@@ -3,6 +3,7 @@ import os
 import shutil
 import logging
 
+from app import celery_app
 from uncompress import get_encoded_encrypted_symmetric_key, get_symmetric_key, uncrypt_update_list
 from storage import store_updatelist
 
@@ -17,9 +18,6 @@ log.addHandler(h)
 
 def process_file_queue(args):
     process_file_task(args["directory"], args["file_item"], args["conf"])
-
-
-from app import celery_app
 
 
 @celery_app.task
