@@ -12,3 +12,4 @@ itsdangerous==2.1.2
 Pyrebase4==4.5.0
 psycopg2-binary==2.9.5
 flask_httpauth==4.7.0
+flask-migrate==3.0.1
