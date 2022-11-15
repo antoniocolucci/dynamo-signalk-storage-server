@@ -4,8 +4,8 @@ import shutil
 import logging
 
 from app import celery_app
-from uncompress import get_encoded_encrypted_symmetric_key, get_symmetric_key, uncrypt_update_list
-from storage import store_updatelist
+from app.uncompress import get_encoded_encrypted_symmetric_key, get_symmetric_key, uncrypt_update_list
+from app.storage import store_updatelist
 
 log = logging.getLogger('tasks')
 log.setLevel(logging.DEBUG)  # DEBUG
