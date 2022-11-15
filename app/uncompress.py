@@ -144,7 +144,7 @@ def main():
     trash_root = "data/trash/"
     csv_root = "data/csv/"
     private_key_filename = "../data/keys/dynamo-signalk-storage-server-private.pem"
-    public_key_root = "keys/public"
+    public_key_root = "../data/keys/public"
 
     process_updates(media_root, scratch_root, trash_root, csv_root, private_key_filename, public_key_root)
 

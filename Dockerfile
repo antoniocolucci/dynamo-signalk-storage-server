@@ -5,8 +5,6 @@ WORKDIR /dynamo-signalk-storage-server
 COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
-RUN mkdir -p data
-
 COPY data data
 COPY config.cfg.sample config.cfg
 COPY app app
