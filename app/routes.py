@@ -138,13 +138,17 @@ class LastPosition(Resource):
 
         try:
             result = conn.execute(
-                "SELECT context, timestamp, value FROM public.navigation_position np1 WHERE timestamp = ( SELECT MAX( np2.timestamp ) FROM public.navigation_position np2 WHERE np1.context = np2.context ) ORDER BY context;"
+                "SELECT ctx.context, pos.timestamp, ctx.value as info, pos.position FROM public.context ctx, "
+                "(SELECT context, timestamp, value as position FROM public.navigation_position np1 WHERE timestamp = "
+                "(SELECT MAX(np2.timestamp) FROM public.navigation_position np2 WHERE np1.context = np2.context) "
+                "ORDER BY context) pos WHERE ctx.context = pos.context AND ctx.timestamp = pos.timestamp;"
             )
             for row in result:
                 positions.append({
                     "id": row[0].split(":")[-1],
                     "timestamp": str(row[1]),
-                    "value": row[2]
+                    "info": row[2],
+                    "position": row[3]
                 })
             conn.close()
         except:

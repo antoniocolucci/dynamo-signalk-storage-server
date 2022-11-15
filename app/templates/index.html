@@ -64,8 +64,8 @@
 
         fetch("/lastPosition").then(response => response.json()).then(data => {
             for (let i=0; i<data.length; i++) {
-                let marker = L.marker([data[i]["value"]["latitude"], data[i]["value"]["longitude"]], {icon: icon}).addTo(layerGroup);
-                marker.bindPopup(data[i]["id"]).openPopup();
+                let marker = L.marker([data[i]["position"]["latitude"], data[i]["position"]["longitude"]], {icon: icon}).addTo(layerGroup);
+                marker.bindPopup(data[i]["info"]["name"]).openPopup();
             }
         })
     }
