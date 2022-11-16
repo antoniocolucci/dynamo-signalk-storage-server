@@ -141,7 +141,7 @@ class LastPosition(Resource):
                 "SELECT ctx.context, pos.timestamp, ctx.value as info, pos.position FROM public.context ctx, "
                 "(SELECT context, timestamp, value as position FROM public.navigation_position np1 WHERE timestamp = "
                 "(SELECT MAX(np2.timestamp) FROM public.navigation_position np2 WHERE np1.context = np2.context) "
-                "ORDER BY context) pos WHERE ctx.context = pos.context AND ctx.timestamp = pos.timestamp;"
+                "ORDER BY context) pos WHERE ctx.context = pos.context LIMIT 1;"
             )
             for row in result:
                 positions.append({

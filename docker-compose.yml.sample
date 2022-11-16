@@ -14,7 +14,7 @@ services:
       - dynamo
 
   dynamo-storage:
-    image: dynamo-storage
+    image: dynamo-signalk-storage-server
     restart: unless-stopped
     ports:
       - 13387:13387
