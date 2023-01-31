@@ -1,10 +1,12 @@
 import os
 import tempfile
+import xml.etree.cElementTree as ET
 
 from flask_restx import Api, Resource
-from flask import current_app, send_file, render_template, request
+from flask import current_app, send_file, render_template, request, Response
 from sqlalchemy import create_engine
 from werkzeug.datastructures import FileStorage
+from datetime import datetime, timedelta
 
 from app import app, auth, get_conf, log, queues
 
@@ -155,6 +157,63 @@ class LastPosition(Resource):
             conn.close()
 
         return positions
+
+
+@api.route('/gpx/<self_id>')
+class GPX(Resource):
+    def get(self, self_id):
+        query = "SELECT * FROM public.navigation_position WHERE context='" + self_id + "' "
+        
+        conf = get_conf()
+
+        connection_string = conf["connection_string"]
+        engine = create_engine(connection_string, echo=False)
+        conn = engine.connect()
+
+        gpx = ET.Element("gpx", attrib={"xmlns": "http://www.topografix.com/GPX/1/1"})
+        trk = ET.SubElement(gpx, "trk")
+        trkseg = ET.SubElement(trk, "trkseg")
+
+        start = request.args.get('start')
+        end = request.args.get('end')
+        hours = request.args.get('hours')
+        minutes = request.args.get('minutes')
+        seconds = request.args.get('seconds')
+
+        try:
+            if start is not None and end is not None:
+                startTime = datetime.strptime(start, '%Y%m%dZ%H%M%S')
+                endTime = datetime.strptime(end, '%Y%m%dZ%H%M%S')
+                query += f"AND timestamp >= '{startTime}' AND timestamp <= '{endTime}' ".format(startTime, endTime)
+
+            elif start is not None and (hours is not None or minutes is not None or seconds is not None):
+                startTime = datetime.strptime(start, '%Y%m%dZ%H%M%S')
+                endTime = startTime + timedelta(hours=int(hours or 0), minutes=int(minutes or 0), seconds=int(seconds or 0))
+                query += f"AND timestamp >= '{startTime}' AND timestamp <= '{endTime}' ".format(startTime, endTime)
+
+            elif end is not None and (hours is not None or minutes is not None or seconds is not None):
+                endTime = datetime.strptime(end, '%Y%m%dZ%H%M%S')
+                startTime = endTime - timedelta(hours=int(hours or 0), minutes=int(minutes or 0), seconds=int(seconds or 0))
+                query += f"AND timestamp >= '{startTime}' AND timestamp <= '{endTime}' ".format(startTime, endTime)
+
+            else:
+                query += "AND timestamp >= NOW() - INTERVAL '15 minutes' "
+        except Exception as e:
+            query += "AND timestamp >= NOW() - INTERVAL '15 minutes' "
+
+        query += "ORDER BY timestamp ASC;"
+
+        try:
+            result = conn.execute(query)
+            for row in result:
+                trkpt = ET.SubElement(trkseg, "trkpt", attrib={"lat": str(row[5]), "lon": str(row[4])})
+                ET.SubElement(trkpt, "time").text = str(row[1])
+
+            conn.close()
+        except Exception as e:
+            conn.close()
+
+        return Response(ET.tostring(gpx), mimetype='text/xml')
 
 
 @app.route('/map')
