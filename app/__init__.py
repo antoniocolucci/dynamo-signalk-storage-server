@@ -162,6 +162,8 @@ celery_app = Celery(app.name, backend=app.config['CELERY_RESULT_BACKEND'], broke
 # Set the celery configuration as the flask application
 celery_app.conf.update(app.config)
 
+log.info("Celery ok")
+
 # Define a worker ToDo: Check if this function is really used
 # def myworker(queue_item):
 #    print("myworker:" + queue_item)
@@ -192,6 +194,7 @@ queues = Queues(process_file_queue, get_conf()["queue_concurrency"])
 # Start the queue
 queues.start()
 
+log.info("Queue Ok")
 
 # Process the files in the media folder
 def process_files():
