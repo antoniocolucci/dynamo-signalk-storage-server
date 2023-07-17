@@ -79,14 +79,19 @@ if not isfile(app.config['PUBLIC_KEY_FILENAME']):
     # Log the info message
     log.info("Public key not found")
 
-    # Read the private key
+    # Open the private key file
     f = open(app.config['PRIVATE_KEY_FILENAME'], "r")
+
+    # Read the private key
     private_key_pem = f.read()
 
+    # Close the file
     f.close()
 
+    # Import the private key
     imported_private_key = RSA.importKey(private_key_pem)
 
+    # Construct the imported private key
     private_key = RSA.construct(
         (
             imported_private_key.n,
@@ -97,6 +102,7 @@ if not isfile(app.config['PUBLIC_KEY_FILENAME']):
         )
     )
 
+    # Export the public key from the private key
     public_key = private_key.publickey().export_key()
 
     # Create a file for the private key
@@ -111,17 +117,18 @@ if not isfile(app.config['PUBLIC_KEY_FILENAME']):
     # Log info message
     log.info("Created public key: " + app.config['PUBLIC_KEY_FILENAME'])
 
-# CHeck the public key directory root
+# Check the public key directory root
 if not isdir(app.config['PUBLIC_KEY_ROOT']):
     # Log the info message
     log.info("Public key directory root not found")
 
+    # Create the directory
     os.mkdir(app.config['PUBLIC_KEY_ROOT'])
 
     # Log info message
     log.info("Created public key directory root: " + app.config['PUBLIC_KEY_ROOT'])
 
-# Check the database backend
+# Check if the database backend is up and running
 
 # Connect the database server
 engine = create_engine(app.config["CONNECTION_STRING"], echo=False)
@@ -130,10 +137,14 @@ engine = create_engine(app.config["CONNECTION_STRING"], echo=False)
 metadata = MetaData()
 
 try:
+    # Create the actual connection
     metadata.create_all(engine)
 
 except:
+    # Log the error message
     log.error("Database connection error. Check the connection string: " + app.config["CONNECTION_STRING"])
+
+    # Exit with error code
     exit(-1)
 
 # Log the info message
@@ -155,10 +166,11 @@ celery_app.conf.update(app.config)
 # def myworker(queue_item):
 #    print("myworker:" + queue_item)
 
-
+# Import the process file que
 from app.tasks import process_file_queue
 
 
+# Get the configuration
 def get_conf():
     conf = {
         "media_root": app.config.get("MEDIA_ROOT"),
@@ -181,26 +193,46 @@ queues = Queues(process_file_queue, get_conf()["queue_concurrency"])
 queues.start()
 
 
+# Process the files in the media folder
 def process_files():
+    # Log the info message
     log.info("Start " + time.strftime("%A, %d. %B %Y %I:%M:%S %p") + "...")
 
+    # Get the configuration
     conf = get_conf()
+
+    # Get the media root path
     media_root = conf["media_root"]
 
+    # Get all directories in the media root (each directory is a vessel uuid)
     directories = [f for f in listdir(media_root) if isdir(join(media_root, f))]
+
+    # For each directory in the directory list...
     for directory in directories:
+
+        # Create the directory path
         directory_root = media_root + "/" + directory
+
+        # Create the file list. Each file contains a data parcel.
         files = [f for f in listdir(directory_root) if isfile(join(directory_root, f))]
+
+        # Fir each file in the file list
         for file_item in files:
+            # Log an info message
             log.info("Processing:" + media_root + "," + directory + "," + file_item)
-            # process_file_task.delay(vessel, file_item, conf)
+
+            # Processing the file is potentially time-consuming, enqueue the process
             queues.enqueue({"directory": directory, "file_item": file_item, "conf": conf})
 
+    # Wait until all the enqueued processes are terminated
     queues.join()
+
+    # Log an info message
     log.info("... " + time.strftime("%A, %d. %B %Y %I:%M:%S %p") + " finish.")
 
 
 # Process files still to be processed
 process_files()
 
+# Import the routes
 from app import routes
