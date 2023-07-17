@@ -1,0 +1,12 @@
+version: '1.0'
+
+services:
+  postgis:
+    image: mdillon/postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dynamo
+      POSTGRES_PASSWORD: Dynamo2022
+      POSTGRES_DB: dynamo
+    ports:
+      - 5432:5432
