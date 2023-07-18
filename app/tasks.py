@@ -75,15 +75,18 @@ def process_file_task(directory, file_item, conf):
                 store_updatelist(update_list, {"connection_string": connection_string})
 
                 shutil.rmtree(scratch_dir)
+                log.debug("Removed scratch directory: " + scratch_dir)
 
             except Exception as exception:
                 log.error(exception)
+
             try:
                 os.makedirs(trash_root + "/" + directory)
+
+                os.rename(src_path, trash_root + "/" + directory + "/" + file_item)
             except FileExistsError as e:
                 pass
 
-            os.rename(src_path, trash_root + "/" + directory + "/" + file_item)
         else:
             log.debug("Public key file missing: " + public_key_filename)
     else:
