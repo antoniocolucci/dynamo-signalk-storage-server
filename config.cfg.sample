@@ -18,4 +18,4 @@ CELERY_BROKER_URL = "pyamqp://guest@localhost//"
 CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
 
 # CONCURRENCY
-QUEUE_SIZE = 8
+QUEUE_CONCURRENCY = 1
