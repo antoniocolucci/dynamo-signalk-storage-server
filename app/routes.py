@@ -198,6 +198,7 @@ class GPX(Resource):
 
             else:
                 query += "AND timestamp >= NOW() - INTERVAL '15 minutes' "
+
         except Exception as e:
             query += "AND timestamp >= NOW() - INTERVAL '15 minutes' "
 
