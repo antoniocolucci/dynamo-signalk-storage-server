@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import create_engine, Column, Table, JSON, Text, Float, MetaData, DateTime, select
+from sqlalchemy import create_engine, Column, Table, JSON, Text, Float, MetaData, DateTime, select, insert
 from geoalchemy2 import Geometry
 
 import json
@@ -75,7 +75,7 @@ def store_updatelist(update_list, options):
         context = update_item["context"]
 
         # Log a debug message
-        log.debug("Processing uuid:"+context)
+        log.debug("Processing context:"+context)
 
         # Skip this iteration if updates is not in the update item
         if "updates" not in update_item:
@@ -126,11 +126,15 @@ def store_updatelist(update_list, options):
                     # Get the source reference
                     source_ref = source["label"]
 
+            # Log da debug message
+            log.debug(str(timestamp) + " source_ref: " + source_ref)
+
             # Set the sources table reference to none
             sources_table = None
 
             # Check if the table "sources" must be created
             if source is not None and "sources" not in metadata.tables:
+
                 # Define the sources table
                 sources_table = Table("sources", metadata,
                                       Column('context', Text, nullable=False, primary_key=True),
@@ -142,136 +146,190 @@ def store_updatelist(update_list, options):
                 # Create the sources table
                 metadata.create_all(engine)
 
+                # Log a debug message
+                log.debug("Created table: sources")
+
             # Check if the table "sources" exists
             if "sources" in metadata.tables:
 
                 # Search for the source_ref in the table
-                result = engine.execute('SELECT label FROM sources WHERE label="' + source_ref + '";')
 
-                # Check if the source label is not present
-                if len(result) == 0:
-                    params = {
-                        "context": context,
-                        "label": source_ref,
-                        "type": source["type"],
-                        "value": source
-                    }
+                sql_string = select("sources").where("label" == source_ref)
 
-                    # Prepare the sql string for the insert given the parameters above
-                    sql_string = sources_table.insert().values(params)
+                try:
+                    with engine.connect() as conn:
+                        result = conn.execute(sql_string)
 
-                    # Execute the insert
-                    engine.execute(sql_string)
+                        # Check if the source label is not present
+                        if result.rowcount == 0:
+                            params = {
+                                "context": context,
+                                "label": source_ref,
+                                "type": source["type"],
+                                "value": source
+                            }
+
+                            # Prepare the sql string for the insert given the parameters above
+                            sql_string = insert(sources_table).values(params)
+
+                            # Execute the insert
+                            conn.execute(sql_string)
+
+                            # Commit the changes
+                            conn.commit()
+
+                            # Log a debug message
+                            log.debug("Added " + source_ref + "to the sources table")
+
+                except Exception as exception:
+                    log.error("SQL:" + str(exception))
+
+                    continue
 
             # Check if the update has a list of values
-            if "values" in update and update["values"]:
+            if "values" not in update: #and update["values"]:
 
-                # Get the list of values
-                values = update["values"]
+                # Log an error message
+                log.error("values not in the update")
 
-                # For each value in the list of values
-                for value in values:
+                # Go to the next update
+                continue
 
-                    # Check if the path is present
-                    if "path" in value:
+            # Get the list of values
+            values = update["values"]
 
-                        # Get the path
-                        path = value["path"]
+            # For each value in the list of values
+            for value in values:
 
-                        # Check if the path is empty
-                        if path == "":
+                # Check if the path is present
+                if "path" in value:
 
-                            # Set the table name as "context"
-                            table_name = "context"
+                    # Get the path
+                    path = value["path"]
 
+                    # Check if the path is empty
+                    if path == "":
+
+                        # Set the table name as "context"
+                        table_name = "context"
+
+                    else:
+                        # Create the table name
+                        table_name = path.replace(".", "_")
+
+                    # Get the value
+                    value_data = value["value"]
+
+                    # Check if the table must be created
+                    if table_name not in metadata.tables:
+
+                        # Check if the path is related to a position
+                        if path == "navigation.position":
+
+                            # Define the data table
+                            Table(table_name, metadata,
+                                  Column('context', Text, nullable=False, primary_key=True),
+                                  Column('timestamp', DateTime, nullable=False, primary_key=True),
+                                  Column('source', Text, nullable=False, primary_key=True),
+                                  Column('value', JSON),
+                                  Column('lon', Float),
+                                  Column('lat', Float),
+                                  Column('point', Geometry('POINT'))
+                                  )
                         else:
-                            # Create the table name
-                            table_name = path.replace(".", "_")
+                            # Check if the value is a dictionary
+                            if isinstance(value_data, dict):
 
-                        # Get the value
-                        value_data = value["value"]
+                                # Set the value type as JSON
+                                value_datatype = JSON
 
-                        # Check if the table must be created
-                        if table_name not in metadata.tables:
+                            # Check if the value is a string
+                            elif isinstance(value_data, str):
 
-                            # Check if the path is related to a position
-                            if path == "navigation.position":
+                                # Set the value type as text
+                                value_datatype = Text
 
-                                # Define the data table
-                                Table(table_name, metadata,
-                                      Column('context', Text, nullable=False, primary_key=True),
-                                      Column('timestamp', DateTime, nullable=False, primary_key=True),
-                                      Column('source', Text, nullable=False, primary_key=True),
-                                      Column('value', JSON),
-                                      Column('lon', Float),
-                                      Column('lat', Float),
-                                      Column('point', Geometry('POINT'))
-                                      )
-                            else:
-                                # Check if the value is a dictionary
-                                if isinstance(value_data, dict):
-
-                                    # Set the value type as JSON
-                                    value_datatype = JSON
-
-                                # Check if the value is a string
-                                elif isinstance(value_data, str):
-
-                                    # Set the value type as text
-                                    value_datatype = Text
-
-                                # Otherwise consider the value as a float
-                                else:
-
-                                    # Set the value type as Float
-                                    value_datatype = Float
-
-                                # Define the data table
-                                Table(table_name, metadata,
-                                      Column('context', Text, nullable=False, primary_key=True),
-                                      Column('timestamp', DateTime, nullable=False, primary_key=True),
-                                      Column('source', Text, nullable=False, primary_key=True),
-                                      Column('value', value_datatype)
-                                      )
-                            # Create the table
-                            metadata.create_all(engine)
-
-                        # Get the table reference
-                        data_table = metadata.tables[table_name]
-
-                        # Check if the table reference is consistent
-                        if data_table is not None:
-
-                            # Check if the path is a position
-                            if path == "navigation.position":
-
-                                # Prepare the parameters considering the position as geographic point
-                                params = {
-                                    "context": context,
-                                    "timestamp": timestamp,
-                                    "source": source_ref,
-                                    "value": value_data,
-                                    "lon": value_data["longitude"],
-                                    "lat": value_data["latitude"],
-                                    "point": "POINT (" +
-                                             str(value_data["latitude"]) + " " + str(value_data["longitude"]) +
-                                             ")"
-                                }
+                            # Otherwise consider the value as a float
                             else:
 
-                                # Prepare the parameters
-                                params = {
-                                    "context": context,
-                                    "timestamp": timestamp,
-                                    "source": source_ref,
-                                    "value": value_data
-                                }
+                                # Set the value type as Float
+                                value_datatype = Float
 
-                            # Create the sql string
-                            sql_string = data_table.insert().values(params)
+                            # Define the data table
+                            Table(table_name, metadata,
+                                  Column('context', Text, nullable=False, primary_key=True),
+                                  Column('timestamp', DateTime, nullable=False, primary_key=True),
+                                  Column('source', Text, nullable=False, primary_key=True),
+                                  Column('value', value_datatype)
+                                  )
+                        # Create the table
+                        metadata.create_all(engine)
+
+                        # Log a debug message
+                        log.debug("Table " + table_name + " created!")
+
+                    # Get the table reference
+                    data_table = metadata.tables[table_name]
+
+                    # Check if the table reference is consistent
+                    if data_table is None:
+
+                        # Log an error message
+                        log.error("Table " + table_name + " not present.")
+
+                        # Go to the next value
+                        continue
+
+                    # Check if the path is a position
+                    if path == "navigation.position":
+
+                        # Prepare the parameters considering the position as geographic point
+                        params = {
+                            "context": context,
+                            "timestamp": timestamp,
+                            "source": source_ref,
+                            "value": value_data,
+                            "lon": value_data["longitude"],
+                            "lat": value_data["latitude"],
+                            "point": "POINT (" +
+                                     str(value_data["latitude"]) + " " + str(value_data["longitude"]) +
+                                     ")"
+                        }
+                    else:
+
+                        # Prepare the parameters
+                        params = {
+                            "context": context,
+                            "timestamp": timestamp,
+                            "source": source_ref,
+                            "value": value_data
+                        }
+
+                    # Create the sql string
+                    sql_string = insert(data_table).values(params)
+
+                    # Log a debug message
+                    log.debug("SQL string: " + str(sql_string))
+
+                    try:
+                        # Create a connection
+                        with engine.connect() as conn:
 
                             # Insert data
-                            engine.execute(sql_string)
+                            conn.execute(sql_string)
+
+                            # Commit the changes
+                            conn.commit()
+
+                            # Log a debug message
+                            log.debug("Added: " + context + "." + path + " -> " + str(value_data))
+
+                    except Exception as exception:
+
+                        # Log a debug message
+                        log.error("While adding data: " + str(exception))
+
+
 
 
 def main():

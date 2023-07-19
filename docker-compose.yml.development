@@ -10,3 +10,9 @@ services:
       POSTGRES_DB: dynamo
     ports:
       - 5432:5432
+
+  rabbitmq:
+    image: rabbitmq
+    restart: unless-stopped
+    ports:
+      - 5672:5672

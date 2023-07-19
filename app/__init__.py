@@ -164,13 +164,9 @@ celery_app.conf.update(app.config)
 
 log.info("Celery ok")
 
-# Define a worker ToDo: Check if this function is really used
-# def myworker(queue_item):
-#    print("myworker:" + queue_item)
 
 # Import the process file que
 from app.tasks import process_file_queue
-
 
 # Get the configuration
 def get_conf():
@@ -182,7 +178,7 @@ def get_conf():
         "private_key_filename": app.config.get("PRIVATE_KEY_FILENAME"),
         "public_key_filename": app.config.get("PUBLIC_KEY_FILENAME"),
         "public_key_root": app.config.get("PUBLIC_KEY_ROOT"),
-        "queue_concurrency": 1
+        "queue_concurrency": app.config.get("QUEUE_CONCURRENCY")
     }
 
     return conf
