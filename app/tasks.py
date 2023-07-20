@@ -3,7 +3,10 @@ import os
 import shutil
 import logging
 
-from app import celery_app
+from flask import current_app
+
+from celery import shared_task
+from celery import Task
 from app.uncompress import get_encoded_encrypted_symmetric_key, get_symmetric_key, uncrypt_update_list
 from app.storage import store_updatelist
 
@@ -16,33 +19,29 @@ h.setFormatter(fmt)
 log.addHandler(h)
 
 
-def process_file_queue(args):
-    process_file_task(args["directory"], args["file_item"], args["conf"])
-
-
-@celery_app.task
-def process_file_task(directory, file_item, conf):
+@shared_task(bind=True, ignore_result=False)
+def process_file_task(self: Task, directory: str, file_item: str):
 
     # Retrieve the media root (where the flask route saves the "type.context/...log.gz.enc" files
-    media_root = conf["media_root"]
+    media_root = current_app.config["MEDIA_ROOT"]
 
     # Retrieve the scratch root (where the "type.context/...log.gz.enc" files are unzipped, decrypted and processed.
-    scratch_root = conf["scratch_root"]
+    scratch_root = current_app.config["SCRATCH_ROOT"]
 
     # Retrieve the trash root (where the "type.context/...log.gz.enc" files are stored before removed forever)
-    trash_root = conf["trash_root"]
+    trash_root = current_app.config["TRASH_ROOT"]
 
     # Get the connection string
-    connection_string = conf["connection_string"]
+    connection_string = current_app.config["CONNECTION_STRING"]
 
     # Get the local private key file name
-    private_key_filename = conf["private_key_filename"]
+    private_key_filename = current_app.config["PRIVATE_KEY_FILENAME"]
 
     # Check if the local private key exists
     if os.path.isfile(private_key_filename):
 
         # Get the public key root (where the public keys are stored in the format type.context-public.pem
-        public_key_root = conf["public_key_root"]
+        public_key_root = current_app.config["PUBLIC_KEY_ROOT"]
 
         # Set the public key file name
         public_key_filename = public_key_root + "/" + directory + "-public.pem"

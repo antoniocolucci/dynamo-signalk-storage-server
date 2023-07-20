@@ -11,8 +11,10 @@ services:
     ports:
       - 5432:5432
 
-  rabbitmq:
-    image: rabbitmq
-    restart: unless-stopped
+  redis:
+    image: bitnami/redis:latest
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    restart: always
     ports:
-      - 5672:5672
+      - 6379:6379

@@ -6,9 +6,9 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 COPY data data
-COPY config.cfg.sample config.cfg
+COPY config.json.sample config.json
 COPY app app
-COPY dynamo-signalk-storage-server.py dynamo-signalk-storage-server.py
+COPY run.py run.py
 
 COPY dynamo-signalk-storage-server.sh dynamo-signalk-storage-server.sh
 
