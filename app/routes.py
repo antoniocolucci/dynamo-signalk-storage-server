@@ -1,25 +1,56 @@
+import logging
 import os
 import tempfile
 import xml.etree.cElementTree as ET
 
-from flask_restx import Api, Resource
 from flask import current_app, send_file, render_template, request, Response
 from sqlalchemy import create_engine
 from werkzeug.datastructures import FileStorage
 from datetime import datetime, timedelta
 
-from app import app, auth, get_conf, log, queues
+from celery.result import AsyncResult
+from flask import request, jsonify
+from flask_restx import Api, Resource, fields
+from flask_httpauth import HTTPBasicAuth
+
+
+# Create the logger
+log = logging.getLogger('routes')
+
+# Set the default logger level as debug
+log.setLevel(logging.DEBUG)
+
+# Create the logger formatter
+fmt = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+
+# Get the handler
+h = logging.StreamHandler()
+
+# Set the formatter
+h.setFormatter(fmt)
+
+# Add the handler to the logger
+log.addHandler(h)
 
 # Create the api object using restx
-api = Api(app)
+api = Api(current_app)
+
+add_model = api.model("add", {
+    "a": fields.Integer(0),
+    "b": fields.Integer(0)
+})
+
+# Get the HTTP Basic Authentication object
+auth = HTTPBasicAuth()
+
+log.debug("Routes")
 
 
 @api.route('/publickey')
 class PublicKey(Resource):
     def get(self):
-        conf = get_conf()
-        log.debug("public_key_filename:"+conf["public_key_filename"])
-        return send_file(conf["public_key_filename"], as_attachment=True)
+        log.debug("PUBLIC_KEY_FILENAME:" + current_app.config.get["PUBLIC_KEY_FILENAME"])
+        return send_file(current_app.config.get["PUBLIC_KEY_FILENAME"], as_attachment=True)
 
 
 @auth.verify_password
@@ -80,6 +111,8 @@ upload_parser.add_argument('sessionId', required=True, help="Session unique iden
 @api.expect(upload_parser)
 class ParcelUpload(Resource):
     def post(self, self_id):
+        # Import the process file
+        from app.tasks import process_file_task
 
         # This is FileStorage instance
         uploaded_file = request.files['file']
@@ -119,8 +152,8 @@ class ParcelUpload(Resource):
             # Save the uploaded file as the file path
             uploaded_file.save(file_path)
 
-            # Enqueue the task
-            queues.enqueue({"directory": self_id, "file_item": temp_name + '.log.gz.enc', "conf": get_conf()})
+            # Processing the file is potentially time-consuming, enqueue the process
+            process_file_task.delay(self_id, temp_name + '.log.gz.enc')
 
             return {'result': 'ok'}, 200
         else:
@@ -132,9 +165,7 @@ class LastPosition(Resource):
     def get(self):
         positions = []
 
-        conf = get_conf()
-
-        connection_string = conf["connection_string"]
+        connection_string = current_app.config["CONNECTION_STRING"]
         engine = create_engine(connection_string, echo=False)
         conn = engine.connect()
 
@@ -153,7 +184,7 @@ class LastPosition(Resource):
                     "position": row[3]
                 })
             conn.close()
-        except:
+        except Exception as exception:
             conn.close()
 
         return positions
@@ -163,10 +194,8 @@ class LastPosition(Resource):
 class GPX(Resource):
     def get(self, self_id):
         query = "SELECT * FROM public.navigation_position WHERE context='" + self_id + "' "
-        
-        conf = get_conf()
 
-        connection_string = conf["connection_string"]
+        connection_string = current_app.config["CONNECTION_STRING"]
         engine = create_engine(connection_string, echo=False)
         conn = engine.connect()
 
@@ -188,12 +217,14 @@ class GPX(Resource):
 
             elif start is not None and (hours is not None or minutes is not None or seconds is not None):
                 startTime = datetime.strptime(start, '%Y%m%dZ%H%M%S')
-                endTime = startTime + timedelta(hours=int(hours or 0), minutes=int(minutes or 0), seconds=int(seconds or 0))
+                endTime = startTime + timedelta(hours=int(hours or 0), minutes=int(minutes or 0),
+                                                seconds=int(seconds or 0))
                 query += f"AND timestamp >= '{startTime}' AND timestamp <= '{endTime}' ".format(startTime, endTime)
 
             elif end is not None and (hours is not None or minutes is not None or seconds is not None):
                 endTime = datetime.strptime(end, '%Y%m%dZ%H%M%S')
-                startTime = endTime - timedelta(hours=int(hours or 0), minutes=int(minutes or 0), seconds=int(seconds or 0))
+                startTime = endTime - timedelta(hours=int(hours or 0), minutes=int(minutes or 0),
+                                                seconds=int(seconds or 0))
                 query += f"AND timestamp >= '{startTime}' AND timestamp <= '{endTime}' ".format(startTime, endTime)
 
             else:
@@ -212,11 +243,7 @@ class GPX(Resource):
 
             conn.close()
         except Exception as e:
+            log.error("SQL: " + str(e))
             conn.close()
 
         return Response(ET.tostring(gpx), mimetype='text/xml')
-
-
-@app.route('/map')
-def index():
-    return render_template('index.html')
