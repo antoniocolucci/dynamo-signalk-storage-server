@@ -1,0 +1,16 @@
+{
+  "CONNECTION_STRING": "postgresql://dynamo:Dynamo2022@127.0.0.1/dynamo",
+  "PRIVATE_KEY_FILENAME": "/dynamo-signalk-storage-server/data/keys/dynamo-signalk-storage-server-private.pem",
+  "PUBLIC_KEY_FILENAME":"/dynamo-signalk-storage-server/data/keys/dynamo-signalk-storage-server-public.pem",
+  "PUBLIC_KEY_ROOT":"/dynamo-signalk-storage-server/data/keys/public",
+
+  "MEDIA_ROOT":"/dynamo-signalk-storage-server/data/media",
+  "SCRATCH_ROOT":"/dynamo-signalk-storage-server/data/scratch",
+  "TRASH_ROOT":"/dynamo-signalk-storage-server/data/trash",
+
+  "CELERY": {
+    "broker_url": "redis://localhost",
+    "result_backend": "redis://localhost",
+    "task_ignore_result": false
+  }
+}
