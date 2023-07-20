@@ -4,9 +4,9 @@
   "PUBLIC_KEY_FILENAME":"data/keys/dynamo-signalk-storage-server-public.pem",
   "PUBLIC_KEY_ROOT":"data/keys/public",
 
-  "MEDIA_ROOT":"/dynamo-signalk-storage-server/data/media",
-  "SCRATCH_ROOT":"/dynamo-signalk-storage-server/data/scratch",
-  "TRASH_ROOT":"/dynamo-signalk-storage-server/data/trash",
+  "MEDIA_ROOT":"data/media",
+  "SCRATCH_ROOT":"data/scratch",
+  "TRASH_ROOT":"data/trash",
 
   "CELERY": {
     "broker_url": "redis://localhost",

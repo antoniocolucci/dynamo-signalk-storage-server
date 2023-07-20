@@ -45,30 +45,33 @@ https://doi.org/10.1109/IC2E.2018.00064
 
 ## Building and run
 
-### How to run with Docker
 
-```
-From the terminal, enter the folder where you want to keep the project and perform the following steps:
+```git clone https://github.com/OpenFairWind/dynamo-signalk-storage-server.git```
+```cd dynamo-signalk-storage-server```
+```python3 -m venv venv```
+```. venv/bin/activate```
+```cp config.json.sample config.json```
+```cp docker-compose.yml.development docker-compose```
 
-$ git clone https://github.com/OpenFairWind/dynamo-storage
+1st shell:
+```cd dynamo-signalk-storage-server```
+```docker-compose up```
 
-$ cd dynamo-signalk-storage-server
+2st shell (be sure the services are up and running):
+```cd dynamo-signalk-storage-server```
+```. venv/bin/activate```
+```celery --app run worker --loglevel INFO```
 
-$ cd keys
+3st shell (be sure the worker is up and running):
+```cd dynamo-signalk-storage-server```
+```. venv/bin/activate```
+```flask --app app run -h 0.0.0.0 -p 13387 --debug```
 
-$ openssl genrsa -out dynamo-signalk-storage-server-private.pem 2048
 
-$ openssl rsa -in dynamo-signalk-storage-server-private.pem -outform PEM -pubout -out dynamo-signalk-storage-server-public.pem
+## How to create keys manually
 
-$ mkdir public
+Private key
+```openssl genrsa -out dynamo-signalk-storage-server-private.pem 2048```
 
-$ cd public
-
-copy client public key here
-
-go to main directory
-
-$ docker build . -t dynamo-signalk-storage-server
-
-$ docker-compose up -d
-```
+Public key
+```openssl rsa -in dynamo-signalk-storage-server-private.pem -outform PEM -pubout -out dynamo-signalk-storage-server-public.pem```
