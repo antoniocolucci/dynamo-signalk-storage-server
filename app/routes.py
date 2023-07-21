@@ -49,8 +49,9 @@ log.debug("Routes")
 @api.route('/publickey')
 class PublicKey(Resource):
     def get(self):
-        log.debug("PUBLIC_KEY_FILENAME:" + current_app.config.get["PUBLIC_KEY_FILENAME"])
-        return send_file(current_app.config.get["PUBLIC_KEY_FILENAME"], as_attachment=True)
+        with current_app.app_context():
+            log.debug("PUBLIC_KEY_FILENAME:" + current_app.config["PUBLIC_KEY_FILENAME"])
+            return send_file("../"+current_app.config["PUBLIC_KEY_FILENAME"], as_attachment=True)
 
 
 @auth.verify_password
